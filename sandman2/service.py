@@ -90,12 +90,17 @@ class Service(MethodView):
         if request.path.endswith('meta'):
             return self._meta()
 
+        if request.path.endswith('/max'):
+            resource_id = self._get_max()
+        elif request.path.endswith('/min'):
+            resource_id = self._get_min()
+
         if resource_id is None:
             error_message = is_valid_method(self.__model__)
             if error_message:
                 raise BadRequestException(error_message)
 
-            if 'export' in request.args: 
+            if 'export' in request.args:
                 return self._export(self._all_resources())
 
             return flask.jsonify({
@@ -187,16 +192,48 @@ class Service(MethodView):
         database."""
         return flask.jsonify(self.__model__.description())
 
+    def _get_max(self):
+        """Return the max primary key in the model
+
+        :rtype: :Integer
+        """
+        return db.session.query(db.func.max(self.__model__.primary_key_column())).one()
+
+    def _get_min(self):
+        """Return the min primary key in the model
+
+        :rtype: :Integer
+        """
+        return db.session.query(db.func.min(self.__model__.primary_key_column())).one()
+
     def _resource(self, resource_id):
         """Return the ``sandman2.model.Model`` instance with the given
         *resource_id*.
 
         :rtype: :class:`sandman2.model.Model`
         """
+        # addition - aadel - 2017-07-27 - defining max and min id methods
         resource = self.__model__.query.get(resource_id)
         if not resource:
             raise NotFoundException()
         return resource
+
+    def _q(self, query, filters=[], page=0, page_size=None, order=[]):
+        """ from https://stackoverflow.com/questions/13258934/applying-limit-and-offset-to-all-queries-in-sqlalchemy/25943188#25943188
+        Do the sorting, limiting, filtering and paging in the database instead of on the web server, helper method for that
+
+        :rtype: :class:`sandman2.model.Model`
+        """
+        if len(filters):
+            query = query.filter(*filters)
+        if len(order):
+            query = query.order_by(*order)
+        if page_size is not None and page_size > 0:
+            query = query.limit(page_size)
+        if page > 0 and page_size is not None and page_size > 0:
+            query = query.offset(page*page_size)
+        return query
+
 
     def _all_resources(self):
         """Return the complete collection of resources as a list of
@@ -204,28 +241,32 @@ class Service(MethodView):
 
         :rtype: :class:`sandman2.model.Model`
         """
-        queryset = self.__model__.query
         args = {k: v for (k, v) in request.args.items() if k not in ('page', 'export')}
-        if args:
-            filters = []
-            order = []
-            limit = None
+        filters = []
+        order = []
+        limit = 0
+        if len(args.items()) > 0:
             for key, value in args.items():
                 if value.startswith('%'):
                     filters.append(getattr(self.__model__, key).like(str(value), escape='/'))
                 elif key == 'sort':
-                    order.append(getattr(self.__model__, value))
+                    # modification - aadel - 2017-07-27 - allow the use of -value for desc order by and ? wildcards, etc
+                    order.append(db.text(value))
                 elif key == 'limit':
                     limit = value
                 elif hasattr(self.__model__, key):
                     filters.append(getattr(self.__model__, key) == value)
                 else:
                     raise BadRequestException('Invalid field [{}]'.format(key))
-                queryset = queryset.filter(*filters).order_by(*order).limit(limit)
-        if 'page' in request.args:
-            resources = queryset.paginate(int(request.args['page'])).items
-        else:
-            resources = queryset.all()
+
+        queryset = self._q(self.__model__.query,
+                filters,
+                int(request.args['page']) if 'page' in request.args else 0,
+                int(limit) if 'limit' in request.args and int(limit) > 0  else 50000,
+                order
+            )
+
+        resources = queryset.all()
         return [r.to_dict() for r in resources]
 
     def _export(self, collection):

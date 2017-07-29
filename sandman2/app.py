@@ -3,6 +3,7 @@
 # Third-party imports
 from flask import Flask, current_app, jsonify
 from sqlalchemy.sql import sqltypes
+from flask_compress import Compress
 
 # Application imports
 from sandman2.exception import (
@@ -31,7 +32,8 @@ def get_app(
         user_models=None,
         reflect_all=True,
         read_only=False,
-        schema=None):
+        schema=None,
+        compress=False):
     """Return an application instance connected to the database described in
     *database_uri*.
 
@@ -50,6 +52,8 @@ def get_app(
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.classes = []
     db.init_app(app)
+    if compress:
+        Compress(app)
     admin = Admin(app, base_template='layout.html', template_mode='bootstrap3')
     _register_error_handlers(app)
     if user_models:
@@ -109,6 +113,14 @@ def register_service(cls, primary_key_type):
             methods=['GET'])
         current_app.add_url_rule(
             '{resource}/meta'.format(resource=cls.__model__.__url__),
+            view_func=view_func,
+            methods=['GET'])
+        current_app.add_url_rule(
+            '{resource}/max'.format(resource=cls.__model__.__url__),
+            view_func=view_func,
+            methods=['GET'])
+        current_app.add_url_rule(
+            '{resource}/min'.format(resource=cls.__model__.__url__),
             view_func=view_func,
             methods=['GET'])
     if 'POST' in methods:  # pylint: disable=no-member

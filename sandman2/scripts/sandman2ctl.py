@@ -5,7 +5,6 @@ services automatically from existing databases."""
 import argparse
 from sandman2 import get_app
 
-
 def main():
     """Main entry point for script."""
     parser = argparse.ArgumentParser(
@@ -45,10 +44,57 @@ def main():
         '--schema',
         help='Use this named schema instead of default',
         default=None)
-
+    # addition - aadel - 2017-07-26 - adding the ability to exluded tables as a space separated list eg: -e 'table1 table2 table3'
+    parser.add_argument(
+        '-e',
+        '--exclude-tables',
+        help='Exclude these tables from the api',
+        default=None)
+    # addition - aadel - 2017-07-26 - added the ability to run the webserver asyncronously with tornado
+    parser.add_argument(
+        '-t',
+        '--tornado',
+        help='Run with tornado web server',
+        action='store_true',
+        default=False)
+    # addition - aadel - 2017-07-27 - adding ability to include user defined models from different directories
+    parser.add_argument('-i',
+        '--includes',
+        help='Include these space separated paths for user defined models',
+        default=None)
+    parser.add_argument('-m',
+        '--models',
+        help='Include these space separated user defined models from PYTHONPATH',
+        default=None)
+    # addition - aadel - 2017-07-28 - adding zlib compression
+    parser.add_argument('-c',
+        '--compress',
+        help='Compress stream before sending data',
+        action='store_true',
+        default=False)
+    # addition - aadel - 2017-07-28 - adding authentication option
+    parser.add_argument('-a',
+        '--auth-table',
+        help='Authentication Table if present',
+        default=None)
 
     args = parser.parse_args()
-    app = get_app(args.URI, read_only=args.read_only, schema=args.schema)
+    # addition - aadel - 2017-07-27 - including unrelated paths and models
+    if args.includes:
+        import sys
+        for p in args.includes.split():
+            sys.path.insert(0, p)
+    user_models = []
+    if args.models:
+        user_models = args.models.split()
+
+    # addition - aadel - 2017-07-26 - exclude tables if set
+    exclude_tables = []
+    if args.exclude_tables:
+        exclude_tables = args.exclude_tables.split()
+
+
+    app = get_app(args.URI, read_only=args.read_only, schema=args.schema, exclude_tables=exclude_tables, user_models=user_models, compress=args.compress)
     if args.debug:
         app.config['DEBUG'] = True
     if args.local_only:
@@ -56,7 +102,21 @@ def main():
     else:
         host = '0.0.0.0'
     app.config['SECRET_KEY'] = '42'
-    app.run(host=host, port=int(args.port))
+
+    # run with tornado, this should be the default production option
+    if args.tornado:
+        from tornado.wsgi import WSGIContainer
+        from tornado.httpserver import HTTPServer
+        from tornado.ioloop import IOLoop
+
+        app = WSGIContainer(app)
+        app.debug = args.debug
+        http_server = HTTPServer(app)
+        http_server.start(0)
+        http_server.listen(args.port, address=host)
+        IOLoop.instance().start()
+    else:
+        app.run(host=host, port=int(args.port))
 
 
 if __name__ == '__main__':

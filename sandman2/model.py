@@ -73,6 +73,18 @@ class Model(object):
             cls.__table__.primary_key.columns)[  # pylint: disable=no-member
                 0].key
 
+
+    @classmethod
+    def primary_key_column(cls):
+        """Return the column of the model's primary key field.
+
+        :rtype: column
+        """
+        return list(
+            cls.__table__.primary_key.columns)[  # pylint: disable=no-member
+                0]
+
+
     def to_dict(self):
         """Return the resource as a dictionary.
 
