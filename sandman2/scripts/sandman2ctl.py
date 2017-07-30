@@ -2,6 +2,7 @@
 """sandman2ctl is a wrapper around the sandman2 library, which creates REST API
 services automatically from existing databases."""
 
+import sys
 import argparse
 from sandman2 import get_app
 
@@ -57,11 +58,6 @@ def main():
         help='Run with tornado web server',
         action='store_true',
         default=False)
-    # addition - aadel - 2017-07-27 - adding ability to include user defined models from different directories
-    parser.add_argument('-i',
-        '--includes',
-        help='Include these space separated paths for user defined models',
-        default=None)
     parser.add_argument('-m',
         '--models',
         help='Include these space separated user defined models from PYTHONPATH',
@@ -72,27 +68,15 @@ def main():
         help='Compress stream before sending data',
         action='store_true',
         default=False)
-    # addition - aadel - 2017-07-28 - adding authentication option
-    parser.add_argument('-a',
-        '--auth-table',
-        help='Authentication Table if present',
-        default=None)
 
     args = parser.parse_args()
-    # addition - aadel - 2017-07-27 - including unrelated paths and models
-    if args.includes:
-        import sys
-        for p in args.includes.split():
-            sys.path.insert(0, p)
     user_models = []
     if args.models:
         user_models = args.models.split()
-
     # addition - aadel - 2017-07-26 - exclude tables if set
     exclude_tables = []
     if args.exclude_tables:
         exclude_tables = args.exclude_tables.split()
-
 
     app = get_app(args.URI, read_only=args.read_only, schema=args.schema, exclude_tables=exclude_tables, user_models=user_models, compress=args.compress)
     if args.debug:

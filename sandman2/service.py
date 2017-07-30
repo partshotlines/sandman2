@@ -10,7 +10,14 @@ from flask.views import MethodView
 from sandman2.exception import NotFoundException, BadRequestException
 from sandman2.model import db
 from sandman2.decorators import etag, validate_fields
+from flask_httpauth import HTTPBasicAuth
+try:
+    import Auth
+except ImportError:
+    import auth as Auth
+    pass
 
+auth = HTTPBasicAuth()
 
 def add_link_headers(response, links):
     """Return *response* with the proper link headers set, based on the contents
@@ -58,6 +65,12 @@ class Service(MethodView):
     is available through the admin interface.
     """
 
+    @auth.verify_password
+    def verify_pw(username, password):
+        a = Auth.Auth()
+        return a.password_verify(username, password)
+
+
     #: The sandman2.model.Model-derived class to expose
     __model__ = None
 
@@ -65,6 +78,7 @@ class Service(MethodView):
     #: returned.
     __json_collection_name__ = 'resources'
 
+    @auth.login_required
     def delete(self, resource_id):
         """Return an HTTP response object resulting from a HTTP DELETE call.
 
@@ -78,6 +92,7 @@ class Service(MethodView):
         db.session().commit()
         return self._no_content_response()
 
+    @auth.login_required
     @etag
     def get(self, resource_id=None):
         """Return an HTTP response object resulting from an HTTP GET call.
@@ -113,6 +128,7 @@ class Service(MethodView):
                 raise BadRequestException(error_message)
             return jsonify(resource)
 
+    @auth.login_required
     def patch(self, resource_id):
         """Return an HTTP response object resulting from an HTTP PATCH call.
 
@@ -132,6 +148,7 @@ class Service(MethodView):
         db.session().commit()
         return jsonify(resource)
 
+    @auth.login_required
     @validate_fields
     def post(self):
         """Return the JSON representation of a new resource created through
@@ -156,6 +173,7 @@ class Service(MethodView):
         db.session().commit()
         return self._created_response(resource)
 
+    @auth.login_required
     def put(self, resource_id):
         """Return the JSON representation of a new resource created or updated
         through an HTTP PUT call.
@@ -187,6 +205,7 @@ class Service(MethodView):
         db.session().commit()
         return self._created_response(resource)
 
+    @auth.login_required
     def _meta(self):
         """Return a description of this resource as reported by the
         database."""

@@ -4,6 +4,11 @@
 from flask import Flask, current_app, jsonify
 from sqlalchemy.sql import sqltypes
 from flask_compress import Compress
+try:
+    import Auth
+except ImportError:
+    import auth as Auth
+    pass
 
 # Application imports
 from sandman2.exception import (
@@ -50,6 +55,7 @@ def get_app(
     app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
     app.config['SANDMAN2_READ_ONLY'] = read_only
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['auth'] = True
     app.classes = []
     db.init_app(app)
     if compress:
@@ -63,7 +69,13 @@ def get_app(
         with app.app_context():
             _reflect_all(exclude_tables, admin, read_only, schema=schema)
 
+    @auth.verify_password
+    def verify_pw(username, password):
+        a = Auth.Auth()
+        return a.password_verify(username, password)
+
     @app.route('/')
+    @auth.login_required
     def index():
         """Return a list of routes to the registered classes."""
         routes = {}
@@ -73,7 +85,6 @@ def get_app(
                 cls.__model__.primary_key())
         return jsonify(routes)
     return app
-
 
 def _register_error_handlers(app):
     """Register error-handlers for the application.
