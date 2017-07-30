@@ -60,7 +60,7 @@ def get_app(
     db.init_app(app)
     if compress:
         Compress(app)
-    admin = Admin(app, base_template='layout.html', template_mode='bootstrap3')
+    admin = None # Admin(app, base_template='layout.html', template_mode='bootstrap3')
     _register_error_handlers(app)
     if user_models:
         with app.app_context():
