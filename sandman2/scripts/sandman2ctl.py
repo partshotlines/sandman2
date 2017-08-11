@@ -92,6 +92,8 @@ def main():
         from tornado.wsgi import WSGIContainer
         from tornado.httpserver import HTTPServer
         from tornado.ioloop import IOLoop
+        from tornado.log import enable_pretty_logging
+        enable_pretty_logging()
 
         app = WSGIContainer(app)
         app.debug = args.debug

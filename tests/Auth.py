@@ -19,30 +19,24 @@ class Auth:
             filters.append(getattr(user_cls, 'username') == username)
         if len(filters) > 0:
             query = query.filter(*filters)
-#             print query.compile(dialect=mysql.dialect())
-#             print str(query)
 
             recs = query.all()
             rec = {} if len(recs) <= 0 else recs[0].to_dict()
-            if rec == {}:
-                return False
-            hashed = rec['password'].encode('utf-8')
-            if hashed[0] == '$':
-                # do bcrypt compute
-                if bcrypt.hashpw(password, hashed) == hashed:
-                    return True
-                else:
+            if rec['name'].lower() == 'admin' or rec['name'].lower() == 'api-user':
+                if rec == {}:
                     return False
-            else:
-                # do md5 + salt compute
-                parts = hashed.split(':')
-                crypted = parts[0]
-                salt = parts[1]
-                m = md5.new(password + salt)
-                if m.hexdigest() == crypted:
-                    return True
+                hashed = rec['password'].encode('utf-8')
+                if hashed[0] == '$':
+                    # do bcrypt compute
+                    if bcrypt.hashpw(password, hashed) == hashed:
+                        return True
                 else:
-                    return False
-        else:
-            return False
+                    # do md5 + salt compute
+                    parts = hashed.split(':')
+                    crypted = parts[0]
+                    salt = parts[1]
+                    m = md5.new(password + salt)
+                    if m.hexdigest() == crypted:
+                        return True
+        return False
 
