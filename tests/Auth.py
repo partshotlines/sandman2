@@ -22,9 +22,10 @@ class Auth:
 
             recs = query.all()
             rec = {} if len(recs) <= 0 else recs[0].to_dict()
+            if rec == {}:
+                return False
+
             if rec['name'].lower() == 'admin' or rec['name'].lower() == 'api-user':
-                if rec == {}:
-                    return False
                 hashed = rec['password'].encode('utf-8')
                 if hashed[0] == '$':
                     # do bcrypt compute
@@ -38,5 +39,8 @@ class Auth:
                     m = md5.new(password + salt)
                     if m.hexdigest() == crypted:
                         return True
-        return False
+            else:
+                return False
+        else:
+            return False
 
