@@ -286,6 +286,8 @@ class Service(MethodView):
             )
 
         resources = queryset.all()
+#         for r in resources:
+#             print r.object_as_dict()
         return [r.to_dict() for r in resources]
 
     def _export(self, collection):

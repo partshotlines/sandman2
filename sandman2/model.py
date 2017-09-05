@@ -84,8 +84,37 @@ class Model(object):
             cls.__table__.primary_key.columns)[  # pylint: disable=no-member
                 0]
 
-
     def to_dict(self):
+        """Return the resource as a dictionary.
+
+        :rtype: dict
+        """
+#         print self.__dict__
+#         from sqlalchemy.inspection import inspect
+#         for r in self.__mapper__.relationships:
+#             print r
+
+#         print self.__dict__
+        result_dict = {}
+#         for column in self.__table__.columns.keys():  # pylint: disable=no-member
+        for column in self.__dict__:
+            if column is not "_sa_instance_state":
+#                 print column
+                value = result_dict[column] = getattr(self, column, None)
+                d = getattr(value, "__dict__", None)
+                if isinstance(value, Decimal):
+                    result_dict[column] = float(result_dict[column])
+                elif isinstance(value, datetime.datetime):
+                    result_dict[column] = value.isoformat()
+                elif d is not None:
+                    result_dict[column] = value.to_dict()
+                else:
+                    result_dict[column] = value
+        return result_dict
+
+
+    # modiciation - aadel - 2017-09-05 - stopped use, check to see the new one is being used for nested objects/joins
+    def to_dict_old(self):
         """Return the resource as a dictionary.
 
         :rtype: dict

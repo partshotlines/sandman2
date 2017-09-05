@@ -73,6 +73,17 @@ def main():
     user_models = []
     if args.models:
         user_models = args.models.split()
+#     user_models = []
+#     user_models_str = []
+#     if args.models:
+#         user_models_str = args.models.split()
+#         for m in user_models_str:
+#             module = __import__(m)
+#             class_ = getattr(module, 'HTest')#m)
+#             user_models.append( class_ )
+#             class_ = getattr(module, 'RTest')#m)
+#             user_models.append( class_ )
+
     # addition - aadel - 2017-07-26 - exclude tables if set
     exclude_tables = []
     if args.exclude_tables:

@@ -58,17 +58,21 @@ def get_app(
     app.config['auth'] = True
     app.classes = []
     db.init_app(app)
+    # addition - aadel - 2017-07-27 - added compression
     if compress:
         Compress(app)
+    # modification - aadel - 2017-08-29 removed admin
     admin = None # Admin(app, base_template='layout.html', template_mode='bootstrap3')
     _register_error_handlers(app)
+
+
+    # modification - aadel - 2017-08-29 - switched order of these two and made them independent, so extensions can use mapped models
+    if reflect_all:
+        with app.app_context():
+            _reflect_all(exclude_tables, admin, read_only, schema=schema)
     if user_models:
         with app.app_context():
             _register_user_models(user_models, admin, schema=schema)
-    elif reflect_all:
-        with app.app_context():
-            _reflect_all(exclude_tables, admin, read_only, schema=schema)
-
     @auth.verify_password
     def verify_pw(username, password):
         a = Auth.Auth()
@@ -202,9 +206,16 @@ def _register_user_models(user_models, admin=None, schema=None):
     :param list user_models: A list of user-defined models to include in the
                              API service
     """
-    if any([issubclass(cls, AutomapModel) for cls in user_models]):
-        AutomapModel.prepare(  # pylint:disable=maybe-no-member
-                               db.engine, reflect=True, schema=schema)
-
+#     if any([issubclass(cls, AutomapModel) for cls in user_models]):
+#         AutomapModel.prepare(  # pylint:disable=maybe-no-member
+#                                db.engine, reflect=True, schema=schema)
+#
     for user_model in user_models:
-        register_model(user_model, admin)
+        # addition - aadel - 2017-09-05 - had trouble with app context, as the app hadn't been created yet,
+        # decided to do this here, split on ., and import the lside as a module, and the rside as a class
+        l = user_model.split(".")
+        if len(l) == 2:
+            module = __import__(l[0])
+            class_ = getattr(module, l[1])
+            register_model(class_, admin)
+#             module.init_model()
