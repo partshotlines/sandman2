@@ -4,6 +4,7 @@ ORM models or a database introspection."""
 # Third-party imports
 from flask import request, make_response
 import flask
+import json
 from flask.views import MethodView
 
 # Application imports
@@ -42,8 +43,9 @@ def jsonify(resource):
     :param resource: The resource to act as the basis of the response
     """
 
-    response = flask.jsonify(resource.to_dict())
-    response = add_link_headers(response, resource.links())
+    response = flask.jsonify(resource.to_dict() if type(resource) is not type(list()) else [r for r in resource])
+    if type(resource) is not type(list()):
+        response = add_link_headers(response, resource.links())
     return response
 
 
@@ -158,20 +160,23 @@ class Service(MethodView):
         :returns: ``HTTP 204`` if the resource already exists
         :returns: ``HTTP 400`` if the request is malformed or missing data
         """
-        resource = self.__model__.query.filter_by(**request.json).first()
-        if resource:
-            error_message = is_valid_method(self.__model__, resource)
-            if error_message:
-                raise BadRequestException(error_message)
-            return self._no_content_response()
+        if "resources" in request.json:
+            resources = request.json["resources"]
+            for i in resources:
+                resource = self.__model__(**i)
+                self._post(resource)
+        else:
+            resources = self.__model__(**request.json)
+            self._post(resources)
 
-        resource = self.__model__(**request.json)  # pylint: disable=not-callable
+        db.session().commit()
+        return self._created_response(resources)
+
+    def _post(self, resource):
         error_message = is_valid_method(self.__model__, resource)
         if error_message:
             raise BadRequestException(error_message)
         db.session().add(resource)
-        db.session().commit()
-        return self._created_response(resource)
 
     @auth.login_required
     def put(self, resource_id):
@@ -320,6 +325,20 @@ class Service(MethodView):
 
         :returns: HTTP Response
         """
-        response = jsonify(resource)
+
+#         if type(resource) == type(list()):
+#             response = jsonify(resource)
+#             response.status_code = 201
+#         else:
+#             response = jsonify(resource)
+#             response.status_code = 201
+#             return response
+#         else:
+#             l = []
+#             for r in resource:
+#                 l.append(jsonify(r))
+#             response = json.dumps( l )
+        response = jsonify( resource )
+#             response = add_link_headers(response, resource.links())
         response.status_code = 201
         return response

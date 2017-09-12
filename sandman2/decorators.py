@@ -61,6 +61,9 @@ def validate_fields(func):
         if not data:
             raise BadRequestException('No data received from request')
         for key in data:
+            if key == "resources":
+                # you must know what you're doing, TODO, validate each item
+                return func(instance, *args, **kwargs)
             if key not in (
                     instance.__model__.required() +
                     instance.__model__.optional()):
