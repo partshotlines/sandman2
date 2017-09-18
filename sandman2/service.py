@@ -150,6 +150,7 @@ class Service(MethodView):
         db.session().commit()
         return jsonify(resource)
 
+    # aadel - 2017-09-18 - complete overhaul to handle multiples via the collection name tag, or a single one
     @auth.login_required
     @validate_fields
     def post(self):
@@ -160,23 +161,34 @@ class Service(MethodView):
         :returns: ``HTTP 204`` if the resource already exists
         :returns: ``HTTP 400`` if the request is malformed or missing data
         """
-        if "resources" in request.json:
-            resources = request.json["resources"]
+        resources = request.json[self.__json_collection_name__] if self.__json_collection_name__ in request.json else self.__model__(**request.json)
+        if self.__json_collection_name__ in request.json:
+            l = []
             for i in resources:
                 resource = self.__model__(**i)
-                self._post(resource)
+                l.append( resource )
+                error_message = is_valid_method(self.__model__, resource)
+                if error_message:
+                    raise BadRequestException(error_message)
+                db.session().add(resource)
+            db.session().flush()
+            resources = l
+            for resource in l:
+                db.session().refresh( resource )
+
+            return flask.jsonify({
+                self.__json_collection_name__: [ r.to_dict() for r in resources ]
+            })
+
         else:
-            resources = self.__model__(**request.json)
-            self._post(resources)
+            error_message = is_valid_method(self.__model__, resources)
+            if error_message:
+                raise BadRequestException(error_message)
+            db.session().add(resources)
+            db.session().flush()
+            db.session().refresh( resources )
 
-        db.session().commit()
         return self._created_response(resources)
-
-    def _post(self, resource):
-        error_message = is_valid_method(self.__model__, resource)
-        if error_message:
-            raise BadRequestException(error_message)
-        db.session().add(resource)
 
     @auth.login_required
     def put(self, resource_id):
