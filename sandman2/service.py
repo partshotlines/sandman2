@@ -161,6 +161,7 @@ class Service(MethodView):
         :returns: ``HTTP 204`` if the resource already exists
         :returns: ``HTTP 400`` if the request is malformed or missing data
         """
+        ret = '{}'
         resources = request.json[self.__json_collection_name__] if self.__json_collection_name__ in request.json else self.__model__(**request.json)
         if self.__json_collection_name__ in request.json:
             l = []
@@ -176,7 +177,7 @@ class Service(MethodView):
             for resource in l:
                 db.session().refresh( resource )
 
-            return flask.jsonify({
+            ret = flask.jsonify({
                 self.__json_collection_name__: [ r.to_dict() for r in resources ]
             })
 
@@ -187,8 +188,11 @@ class Service(MethodView):
             db.session().add(resources)
             db.session().flush()
             db.session().refresh( resources )
+            ret = self._created_response(resources)
 
-        return self._created_response(resources)
+        db.session().commit()
+
+        return ret
 
     @auth.login_required
     def put(self, resource_id):
