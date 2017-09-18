@@ -164,6 +164,10 @@ def _reflect_all(exclude_tables=None, admin=None, read_only=False, schema=None):
         if read_only:
             cls.__methods__ = {'GET'}
         register_model(cls, admin)
+#         if str(cls.__table__) == "header":
+#             for c in cls.__table__.columns:
+#                 print c
+#                 print c.server_default
 
 
 def register_model(cls, admin=None):

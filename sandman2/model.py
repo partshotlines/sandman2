@@ -47,7 +47,7 @@ class Model(object):
         columns = []
         for column in cls.__table__.columns:  # pylint: disable=no-member
             is_autoincrement = 'int' in str(column.type).lower() and column.autoincrement
-            if (not column.nullable and not column.primary_key) or (column.primary_key and not is_autoincrement):
+            if ( ((not column.nullable and not column.primary_key) or (column.primary_key and not is_autoincrement)) and column.server_default is None):
                 columns.append(column.name)
         return columns
 
@@ -59,7 +59,7 @@ class Model(object):
         """
         columns = []
         for column in cls.__table__.columns:  # pylint: disable=no-member
-            if column.nullable:
+            if column.nullable or column.server_default is not None:
                 columns.append(column.name)
         return columns
 
@@ -113,20 +113,20 @@ class Model(object):
         return result_dict
 
 
-    # modiciation - aadel - 2017-09-05 - stopped use, check to see the new one is being used for nested objects/joins
-    def to_dict_old(self):
-        """Return the resource as a dictionary.
-
-        :rtype: dict
-        """
-        result_dict = {}
-        for column in self.__table__.columns.keys():  # pylint: disable=no-member
-            value = result_dict[column] = getattr(self, column, None)
-            if isinstance(value, Decimal):
-                result_dict[column] = float(result_dict[column])
-            elif isinstance(value, datetime.datetime):
-                result_dict[column] = value.isoformat()
-        return result_dict
+#     # modiciation - aadel - 2017-09-05 - stopped use, check to see the new one is being used for nested objects/joins
+#     def to_dict_old(self):
+#         """Return the resource as a dictionary.
+#
+#         :rtype: dict
+#         """
+#         result_dict = {}
+#         for column in self.__table__.columns.keys():  # pylint: disable=no-member
+#             value = result_dict[column] = getattr(self, column, None)
+#             if isinstance(value, Decimal):
+#                 result_dict[column] = float(result_dict[column])
+#             elif isinstance(value, datetime.datetime):
+#                 result_dict[column] = value.isoformat()
+#         return result_dict
 
     def links(self):
         """Return a dictionary of links to related resources that should be
@@ -174,7 +174,7 @@ class Model(object):
         description = {}
         for column in cls.__table__.columns:  # pylint: disable=no-member
             column_description = str(column.type)
-            if not column.nullable:
+            if not column.nullable and column.server_default is None:
                 column_description += ' (required)'
             description[column.name] = column_description
         return description
