@@ -9,6 +9,12 @@ try:
 except ImportError:
     import auth as Auth
     pass
+try:
+    import Request
+except ImportError:
+    import request as Request
+    pass
+
 
 # Application imports
 from sandman2.exception import (
@@ -77,6 +83,12 @@ def get_app(
     def verify_pw(username, password):
         a = Auth.Auth()
         return a.password_verify(username, password)
+
+    @app.before_request
+    def before_request_hook():
+        from flask import request
+        req = Request.Request()
+        req.before_request_hook(app, request)
 
     @app.route('/')
     @auth.login_required
