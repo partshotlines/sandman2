@@ -147,8 +147,12 @@ class Service(MethodView):
             raise BadRequestException('No JSON data received')
         resource.update(request.json)
         db.session().merge(resource)
+        db.session().flush()
+        db.session().refresh( resource )
+        ret = self._created_response(resource)
         db.session().commit()
-        return jsonify(resource)
+
+        return ret #jsonify(resource)
 
     # aadel - 2017-09-18 - complete overhaul to handle multiples via the collection name tag, or a single one
     @auth.login_required
