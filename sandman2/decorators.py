@@ -1,5 +1,6 @@
 """Decorators for sandman2 convenience functions."""
 import functools
+import json
 import hashlib
 from flask import jsonify, request, make_response
 
@@ -58,6 +59,10 @@ def validate_fields(func):
     def decorated(instance, *args, **kwargs):
         """The decorator function."""
         data = request.get_json(force=True, silent=True)
+        try:
+            data = request.get_data() if not data else data
+        except:
+            raise BadRequestException('Input data not valid json')
         if not data:
             raise BadRequestException('No data received from request')
         for key in data:

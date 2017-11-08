@@ -112,6 +112,20 @@ class Model(object):
                     result_dict[column] = value
         return result_dict
 
+    @classmethod
+    def unique_columns(self):
+        """Return a list column names with a unique key constraint
+        """
+        l = []
+        for idx in self.__table__.__dict__['indexes']:
+            if idx.unique:
+                for col in idx.__dict__['_pending_colargs']:
+                    if col.key not in l:
+                        l.append(col.key)
+
+        return l
+
+
 
 #     # modiciation - aadel - 2017-09-05 - stopped use, check to see the new one is being used for nested objects/joins
 #     def to_dict_old(self):

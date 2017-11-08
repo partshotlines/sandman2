@@ -42,7 +42,6 @@ def jsonify(resource):
 
     :param resource: The resource to act as the basis of the response
     """
-
     response = flask.jsonify(resource.to_dict() if type(resource) is not type(list()) else [r for r in resource])
     if type(resource) is not type(list()):
         response = add_link_headers(response, resource.links())
@@ -199,7 +198,8 @@ class Service(MethodView):
         return ret
 
     @auth.login_required
-    def put(self, resource_id):
+    @validate_fields
+    def put(self, resource_id=None):
         """Return the JSON representation of a new resource created or updated
         through an HTTP PUT call.
 
@@ -212,23 +212,99 @@ class Service(MethodView):
         :returns: ``HTTP 200`` if a resource is updated
         :returns: ``HTTP 400`` if the request is malformed or missing data
         """
-        resource = self.__model__.query.get(resource_id)
-        if resource:
+        if resource_id:
+            resource = self.__model__.query.get(resource_id)
+            if resource:
+                error_message = is_valid_method(self.__model__, resource)
+                if error_message:
+                    raise BadRequestException(error_message)
+                resource.update(request.json)
+                db.session().merge(resource)
+                db.session().commit()
+                return jsonify(resource)
+
+            resource = self.__model__(**request.json)  # pylint: disable=not-callable
             error_message = is_valid_method(self.__model__, resource)
             if error_message:
                 raise BadRequestException(error_message)
-            resource.update(request.json)
-            db.session().merge(resource)
+            db.session().add(resource)
             db.session().commit()
-            return jsonify(resource)
+            return self._created_response(resource)
+        else:
+            ret = '{}'
+            resources = request.json[self.__json_collection_name__] if self.__json_collection_name__ in request.json else self.__model__(**request.json)
+            if self.__json_collection_name__ in request.json:
+                l = []
+                for i in resources:
+                    resource = self.__model__(**i)
+                    l.append( resource )
+                    error_message = is_valid_method(self.__model__, resource)
+                    if error_message:
+                        raise BadRequestException(error_message)
+                    self._upsert(resource)
+#                 db.session().flush()
+#                 resources = l
+#                 for resource in l:
+#                     db.session().refresh( resource )
 
-        resource = self.__model__(**request.json)  # pylint: disable=not-callable
-        error_message = is_valid_method(self.__model__, resource)
-        if error_message:
-            raise BadRequestException(error_message)
-        db.session().add(resource)
-        db.session().commit()
-        return self._created_response(resource)
+                ret = flask.jsonify({
+                    self.__json_collection_name__: [ r.to_dict() for r in resources ]
+                })
+
+            else:
+                error_message = is_valid_method(self.__model__, resources)
+                if error_message:
+                    raise BadRequestException(error_message)
+                self._upsert(resources)
+#             db.session().add(resources)
+#                 db.session().flush()
+#                 db.session().refresh( resources )
+                ret = self._created_response(resources)
+
+            db.session().commit()
+
+            return ret
+
+    def _upsert(self, resource):
+        """Checks the resources against it's models primary and unique key(s)
+        to see if it already exists. If it does, it does an update, merge
+        if it does not, it does an add
+        """
+
+        filters = []
+        for key in self.__model__.unique_columns():
+            if hasattr(self.__model__, key) and hasattr(resource, key):
+                filters.append(getattr(self.__model__, key) == getattr(resource, key))
+            else:
+                raise BadRequestException('Invalid field [{}]'.format(key))
+
+
+        resource_collision = self.__model__.query.filter(*filters).first()
+#         exit(1)
+#         resource = self.__model__.query.get(resource_id)
+        if resource_collision:
+            error_message = is_valid_method(self.__model__, resource)
+            if error_message:
+                raise BadRequestException(error_message)
+            resource_collision.update(resource.to_dict())
+            db.session().merge(resource_collision)
+#             db.session().flush()
+#             db.session().refresh( resource_collision )
+#             db.session().refresh( resource )
+
+#             db.session().commit()
+#             return jsonify(resource)
+#
+#         resource = self.__model__(**request.json)  # pylint: disable=not-callable
+#         error_message = is_valid_method(self.__model__, resource)
+#         if error_message:
+#             raise BadRequestException(error_message)
+        else:
+            db.session().add(resource)
+        db.session().flush()
+#         db.session.refresh( resource )
+#         db.session().commit()
+#         return self._created_response(resource)
 
     @auth.login_required
     def _meta(self):

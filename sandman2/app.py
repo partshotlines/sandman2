@@ -160,6 +160,17 @@ def register_service(cls, primary_key_type):
         view_func=view_func,
         methods=methods - {'POST'})
     current_app.classes.append(cls)
+    # addition - aadel - 2017-11-07 - adding multiple PUT
+    if 'PUT' in methods:  # pylint: disable=no-member
+        current_app.add_url_rule(
+            cls.__model__.__url__ + '/', view_func=view_func, methods=['PUT', ])
+    current_app.add_url_rule(
+        '{resource}/<{pk_type}:{pk}>'.format(
+            resource=cls.__model__.__url__,
+            pk='resource_id', pk_type=primary_key_type),
+        view_func=view_func,
+        methods=methods - {'PUT'})
+    current_app.classes.append(cls)
 
 
 def _reflect_all(exclude_tables=None, admin=None, read_only=False, schema=None):
@@ -176,11 +187,6 @@ def _reflect_all(exclude_tables=None, admin=None, read_only=False, schema=None):
         if read_only:
             cls.__methods__ = {'GET'}
         register_model(cls, admin)
-#         if str(cls.__table__) == "header":
-#             for c in cls.__table__.columns:
-#                 print c
-#                 print c.server_default
-
 
 def register_model(cls, admin=None):
     """Register *cls* to be included in the API service
