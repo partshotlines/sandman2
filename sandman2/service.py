@@ -237,13 +237,13 @@ class Service(MethodView):
                 l = []
                 for i in resources:
                     resource = self.__model__(**i)
-                    l.append( resource )
                     error_message = is_valid_method(self.__model__, resource)
                     if error_message:
                         raise BadRequestException(error_message)
-                    self._upsert(resource)
+                    resource = self._upsert(resource, db)
+                    l.append( resource )
 #                 db.session().flush()
-#                 resources = l
+                resources = l
 #                 for resource in l:
 #                     db.session().refresh( resource )
 
@@ -255,7 +255,7 @@ class Service(MethodView):
                 error_message = is_valid_method(self.__model__, resources)
                 if error_message:
                     raise BadRequestException(error_message)
-                self._upsert(resources)
+                resources = self._upsert(resources,db)
 #             db.session().add(resources)
 #                 db.session().flush()
 #                 db.session().refresh( resources )
@@ -265,7 +265,7 @@ class Service(MethodView):
 
             return ret
 
-    def _upsert(self, resource):
+    def _upsert(self, resource, db):
         """Checks the resources against it's models primary and unique key(s)
         to see if it already exists. If it does, it does an update, merge
         if it does not, it does an add
@@ -288,8 +288,9 @@ class Service(MethodView):
                 raise BadRequestException(error_message)
             resource_collision.update(resource.to_dict())
             db.session().merge(resource_collision)
-#             db.session().flush()
-#             db.session().refresh( resource_collision )
+            db.session().flush()
+            db.session().refresh( resource_collision )
+            return resource_collision
 #             db.session().refresh( resource )
 
 #             db.session().commit()
@@ -301,8 +302,10 @@ class Service(MethodView):
 #             raise BadRequestException(error_message)
         else:
             db.session().add(resource)
-        db.session().flush()
-#         db.session.refresh( resource )
+            db.session().flush()
+            db.session.refresh( resource )
+
+            return resource
 #         db.session().commit()
 #         return self._created_response(resource)
 
