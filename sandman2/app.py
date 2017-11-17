@@ -62,6 +62,12 @@ def get_app(
     app.config['SANDMAN2_READ_ONLY'] = read_only
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['auth'] = True
+#     app.config['DEFAULT_PARSERS'] = [
+#         'JSONXParser',
+#         'flask.ext.api.parsers.JSONParser',
+#         'flask.ext.api.parsers.URLEncodedParser',
+#         'flask.ext.api.parsers.MultiPartParser'
+#     ]
     app.classes = []
     db.init_app(app)
     # addition - aadel - 2017-07-27 - added compression
@@ -87,8 +93,8 @@ def get_app(
     @app.before_request
     def before_request_hook():
         from flask import request
-        req = Request.Request()
-        req.before_request_hook(app, request)
+        req = Request.Request(app, request)
+#         req.before_request_hook()
 
     @app.route('/')
     @auth.login_required

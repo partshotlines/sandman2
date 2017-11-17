@@ -2,7 +2,7 @@
 ORM models or a database introspection."""
 
 # Third-party imports
-from flask import request, make_response
+from flask import request, make_response, current_app
 import flask
 import json
 from flask.views import MethodView
@@ -12,6 +12,9 @@ from sandman2.exception import NotFoundException, BadRequestException
 from sandman2.model import db
 from sandman2.decorators import etag, validate_fields
 from flask_httpauth import HTTPBasicAuth
+
+import request as Request
+
 try:
     import Auth
 except ImportError:
@@ -74,6 +77,7 @@ class Service(MethodView):
 
     #: The sandman2.model.Model-derived class to expose
     __model__ = None
+
 
     #: The string used to describe the elements when a collection is
     #: returned.
@@ -138,13 +142,16 @@ class Service(MethodView):
         :returns: ``HTTP 404`` if the resource is not found
         :param resource_id: The value of the resource's primary key
         """
+
+        req = Request.Request(current_app, request)
+
         resource = self._resource(resource_id)
         error_message = is_valid_method(self.__model__, resource)
         if error_message:
             raise BadRequestException(error_message)
-        if not request.json:
+        if not req.json:
             raise BadRequestException('No JSON data received')
-        resource.update(request.json)
+        resource.update(req.json)
         db.session().merge(resource)
         db.session().flush()
         db.session().refresh( resource )
@@ -164,9 +171,10 @@ class Service(MethodView):
         :returns: ``HTTP 204`` if the resource already exists
         :returns: ``HTTP 400`` if the request is malformed or missing data
         """
+        req = Request.Request(current_app, request)
         ret = '{}'
-        resources = request.json[self.__json_collection_name__] if self.__json_collection_name__ in request.json else self.__model__(**request.json)
-        if self.__json_collection_name__ in request.json:
+        resources = req.json[self.__json_collection_name__] if self.__json_collection_name__ in req.json else self.__model__(**req.json)
+        if self.__json_collection_name__ in req.json:
             l = []
             for i in resources:
                 resource = self.__model__(**i)
@@ -212,18 +220,19 @@ class Service(MethodView):
         :returns: ``HTTP 200`` if a resource is updated
         :returns: ``HTTP 400`` if the request is malformed or missing data
         """
+        req = Request.Request(current_app, request)
         if resource_id:
             resource = self.__model__.query.get(resource_id)
             if resource:
                 error_message = is_valid_method(self.__model__, resource)
                 if error_message:
                     raise BadRequestException(error_message)
-                resource.update(request.json)
+                resource.update(req.json)
                 db.session().merge(resource)
                 db.session().commit()
                 return jsonify(resource)
 
-            resource = self.__model__(**request.json)  # pylint: disable=not-callable
+            resource = self.__model__(**req.json)  # pylint: disable=not-callable
             error_message = is_valid_method(self.__model__, resource)
             if error_message:
                 raise BadRequestException(error_message)
@@ -232,8 +241,8 @@ class Service(MethodView):
             return self._created_response(resource)
         else:
             ret = '{}'
-            resources = request.json[self.__json_collection_name__] if self.__json_collection_name__ in request.json else self.__model__(**request.json)
-            if self.__json_collection_name__ in request.json:
+            resources = req.json[self.__json_collection_name__] if self.__json_collection_name__ in req.json else self.__model__(**req.json)
+            if self.__json_collection_name__ in req.json:
                 l = []
                 for i in resources:
                     resource = self.__model__(**i)
@@ -280,8 +289,6 @@ class Service(MethodView):
 
 
         resource_collision = self.__model__.query.filter(*filters).first()
-#         exit(1)
-#         resource = self.__model__.query.get(resource_id)
         if resource_collision:
             error_message = is_valid_method(self.__model__, resource)
             if error_message:
@@ -291,23 +298,13 @@ class Service(MethodView):
             db.session().flush()
             db.session().refresh( resource_collision )
             return resource_collision
-#             db.session().refresh( resource )
 
-#             db.session().commit()
-#             return jsonify(resource)
-#
-#         resource = self.__model__(**request.json)  # pylint: disable=not-callable
-#         error_message = is_valid_method(self.__model__, resource)
-#         if error_message:
-#             raise BadRequestException(error_message)
         else:
             db.session().add(resource)
             db.session().flush()
             db.session.refresh( resource )
 
             return resource
-#         db.session().commit()
-#         return self._created_response(resource)
 
     @auth.login_required
     def _meta(self):

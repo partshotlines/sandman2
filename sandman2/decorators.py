@@ -2,10 +2,11 @@
 import functools
 import json
 import hashlib
-from flask import jsonify, request, make_response
+from flask import jsonify, request, make_response, current_app
 
 from sandman2.exception import BadRequestException
 
+import request as Request
 
 def etag(func):
     """Return a decorator that generates proper ETag values for a response.
@@ -58,13 +59,21 @@ def validate_fields(func):
     @functools.wraps(func)
     def decorated(instance, *args, **kwargs):
         """The decorator function."""
-        data = request.get_json(force=True, silent=True)
+        req = Request.Request(current_app, request)
+#         print(request.json)
+#         data = request.get_json(force=True, silent=True)
+        data = req.json
         try:
-            data = request.get_data() if not data else data
+            data = req.data if not data else data
+#             data = request.get_data() if not data else data
         except:
             raise BadRequestException('Input data not valid json')
+
         if not data:
             raise BadRequestException('No data received from request')
+
+#         print(func, instance, *args, **kwargs)
+
         for key in data:
             if key == "resources":
                 # you must know what you're doing, TODO, validate each item
@@ -78,3 +87,4 @@ def validate_fields(func):
                 raise BadRequestException('[{}] required'.format(required))
         return func(instance, *args, **kwargs)
     return decorated
+
