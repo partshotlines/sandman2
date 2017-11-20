@@ -33,5 +33,15 @@ class Request:
             pass
 
     def before_request_hook(self):
-        pass
+        """
+        This is a hook that extends anything before any request
+
+        :param app: The application instance
+        :param request: The request instance
+        """
+        path = request.__dict__['environ']['PATH_INFO']
+        if '/utc/' in path:
+            with db.engine.begin() as conn:
+                conn.execute("CALL GetUTC()")
+
 
