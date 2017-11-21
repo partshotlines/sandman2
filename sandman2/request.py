@@ -3,12 +3,14 @@ import io
 import binascii
 import json
 import functools
+from flask_sqlalchemy import SQLAlchemy
 
 class Request:
 
     request = None
     data = None
     json = None
+    db = SQLAlchemy()
 
     def __init__(self, app, request):
         self.request = request
@@ -39,9 +41,9 @@ class Request:
         :param app: The application instance
         :param request: The request instance
         """
-        path = request.__dict__['environ']['PATH_INFO']
+        path = self.request.__dict__['environ']['PATH_INFO']
         if '/utc/' in path:
-            with db.engine.begin() as conn:
+            with self.db.engine.begin() as conn:
                 conn.execute("CALL GetUTC()")
 
 
