@@ -10,7 +10,6 @@ class Request:
     request = None
     data = None
     json = None
-    db = SQLAlchemy()
 
     def __init__(self, app, request):
         self.request = request
@@ -34,16 +33,16 @@ class Request:
         except:
             pass
 
-    def before_request_hook(self):
+    def before_request_hook(self, app, request):
         """
         This is a hook that extends anything before any request
 
         :param app: The application instance
         :param request: The request instance
         """
-        path = self.request.__dict__['environ']['PATH_INFO']
+        path = request.__dict__['environ']['PATH_INFO']
         if '/utc/' in path:
-            with self.db.engine.begin() as conn:
-                conn.execute("CALL GetUTC()")
-
+            with app.app_context():
+                db = SQLAlchemy()
+                db.engine.execute('update utc set utc_ts = NOW()')
 
