@@ -94,7 +94,7 @@ def get_app(
     def before_request_hook():
         from flask import request
         req = Request.Request(app, request)
-#         req.before_request_hook()
+        req.before_request_hook()
 
     @app.route('/')
     @auth.login_required
