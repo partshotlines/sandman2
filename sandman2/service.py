@@ -287,8 +287,16 @@ class Service(MethodView):
             else:
                 raise BadRequestException('Invalid field [{}]'.format(key))
 
+        filters2 = []
+        key = self.__model__.primary_key_column().name
+        if hasattr(self.__model__, key) and hasattr(resource, key):
+            filters2.append(getattr(self.__model__, key) == getattr(resource, key))
+        else:
+            raise BadRequestException('Invalid field [{}]'.format(key))
+
 
         resource_collision = self.__model__.query.filter(*filters).first()
+        resource_collision2 = self.__model__.query.filter(*filters2).first()
         if resource_collision:
             error_message = is_valid_method(self.__model__, resource)
             if error_message:
@@ -298,6 +306,15 @@ class Service(MethodView):
             db.session().flush()
             db.session().refresh( resource_collision )
             return resource_collision
+        elif resource_collision2:
+            error_message = is_valid_method(self.__model__, resource)
+            if error_message:
+                raise BadRequestException(error_message)
+            resource_collision2.update(resource.to_dict())
+            db.session().merge(resource_collision2)
+            db.session().flush()
+            db.session().refresh( resource_collision2 )
+            return resource_collision2
 
         else:
             db.session().add(resource)
