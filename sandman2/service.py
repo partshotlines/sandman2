@@ -384,6 +384,18 @@ class Service(MethodView):
         limit = 0
         if len(args.items()) > 0:
             for key, value in args.items():
+                gte = False
+                lte = False
+                ne = False
+                if key[-1:] == '>' or key[-1:] == '<' or key[-1:] == '!':
+                    if key[-1:] == '>':
+                        gte = True
+                    elif key[-1:] == '<':
+                        lte = True
+                    elif key[-1:] == '!':
+                        ne = True
+                    key = key[:-1]
+
                 if value.startswith('%'):
                     filters.append(getattr(self.__model__, key).like(str(value), escape='/'))
                 elif key == 'sort':
@@ -392,7 +404,15 @@ class Service(MethodView):
                 elif key == 'limit':
                     limit = value
                 elif hasattr(self.__model__, key):
-                    filters.append(getattr(self.__model__, key) == value)
+                    if not gte and not lte and not ne:
+                        filters.append(getattr(self.__model__, key) == value)
+                    elif gte:
+                        filters.append(getattr(self.__model__, key) >= value)
+                    elif lte:
+                        filters.append(getattr(self.__model__, key) <= value)
+                    elif ne:
+                        filters.append(getattr(self.__model__, key) != value)
+
                 else:
                     raise BadRequestException('Invalid field [{}]'.format(key))
 
