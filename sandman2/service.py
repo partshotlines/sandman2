@@ -396,7 +396,8 @@ class Service(MethodView):
                         ne = True
                     key = key[:-1]
 
-                if value.startswith('%'):
+                if key.startswith('%'):
+                    key = key[1:]
                     filters.append(getattr(self.__model__, key).like(str(value), escape='/'))
                 elif key == 'sort':
                     # modification - aadel - 2017-07-27 - allow the use of -value for desc order by and ? wildcards, etc
@@ -415,6 +416,7 @@ class Service(MethodView):
 
                 else:
                     raise BadRequestException('Invalid field [{}]'.format(key))
+
 
         queryset = self._q(self.__model__.query,
                 filters,
