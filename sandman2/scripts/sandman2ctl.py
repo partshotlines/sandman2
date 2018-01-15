@@ -98,6 +98,7 @@ def main():
         host = '0.0.0.0'
     app.config['SECRET_KEY'] = '42'
 
+    print(args)
     # run with tornado, this should be the default production option
     if args.tornado:
         from tornado.wsgi import WSGIContainer
@@ -109,7 +110,7 @@ def main():
         app = WSGIContainer(app)
         app.debug = args.debug
         http_server = HTTPServer(app)
-        http_server.start(0)
+#         http_server.start(0)
         http_server.listen(args.port, address=host)
         IOLoop.instance().start()
     else:
