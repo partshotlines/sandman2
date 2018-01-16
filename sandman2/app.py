@@ -15,7 +15,6 @@ except ImportError:
     import request as Request
     pass
 
-
 # Application imports
 from sandman2.exception import (
     BadRequestException,
@@ -44,7 +43,8 @@ def get_app(
         reflect_all=True,
         read_only=False,
         schema=None,
-        compress=False):
+        compress=False,
+        self_log=False):
     """Return an application instance connected to the database described in
     *database_uri*.
 
@@ -62,21 +62,15 @@ def get_app(
     app.config['SANDMAN2_READ_ONLY'] = read_only
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['auth'] = True
-#     app.config['DEFAULT_PARSERS'] = [
-#         'JSONXParser',
-#         'flask.ext.api.parsers.JSONParser',
-#         'flask.ext.api.parsers.URLEncodedParser',
-#         'flask.ext.api.parsers.MultiPartParser'
-#     ]
+    app.config['self_log'] = self_log
     app.classes = []
     db.init_app(app)
     # addition - aadel - 2017-07-27 - added compression
     if compress:
         Compress(app)
     # modification - aadel - 2017-08-29 removed admin
-    admin = None # Admin(app, base_template='layout.html', template_mode='bootstrap3')
+    admin = Admin(app, base_template='layout.html', template_mode='bootstrap3')
     _register_error_handlers(app)
-
 
     # modification - aadel - 2017-08-29 - switched order of these two and made them independent, so extensions can use mapped models
     if reflect_all:
@@ -93,6 +87,9 @@ def get_app(
     @app.before_request
     def before_request_hook():
         from flask import request
+        if app.config['self_log']:
+            msg = "%s [%s] [%s]" % (request.url, request.remote_addr, request.method)
+            print(msg)
         req = Request.Request(app, request)
         req.before_request_hook(app, request)
 

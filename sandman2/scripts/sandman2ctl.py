@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.4
 """sandman2ctl is a wrapper around the sandman2 library, which creates REST API
 services automatically from existing databases."""
 
@@ -63,9 +63,14 @@ def main():
         help='Include these space separated user defined models from PYTHONPATH',
         default=None)
     # addition - aadel - 2017-07-28 - adding zlib compression
-    parser.add_argument('-c',
+    parser.add_argument('-z',
         '--compress',
         help='Compress stream before sending data',
+        action='store_true',
+        default=False)
+    parser.add_argument('-b',
+        '--bjoern',
+        help="Use the bjoern wsgi server",
         action='store_true',
         default=False)
 
@@ -89,7 +94,7 @@ def main():
     if args.exclude_tables:
         exclude_tables = args.exclude_tables.split()
 
-    app = get_app(args.URI, read_only=args.read_only, schema=args.schema, exclude_tables=exclude_tables, user_models=user_models, compress=args.compress)
+    app = get_app(args.URI, read_only=args.read_only, schema=args.schema, exclude_tables=exclude_tables, user_models=user_models, compress=args.compress, self_log=True if args.bjoern else False)
     if args.debug:
         app.config['DEBUG'] = True
     if args.local_only:
@@ -98,9 +103,11 @@ def main():
         host = '0.0.0.0'
     app.config['SECRET_KEY'] = '42'
 
-    print(args)
     # run with tornado, this should be the default production option
-    if args.tornado:
+    if args.bjoern:
+        import bjoern
+        bjoern.run(app, host, int(args.port))
+    elif args.tornado:
         from tornado.wsgi import WSGIContainer
         from tornado.httpserver import HTTPServer
         from tornado.ioloop import IOLoop
