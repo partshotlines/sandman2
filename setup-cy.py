@@ -1,4 +1,5 @@
 # http://nfoti.github.io/a-creative-blog-name/posts/2013/02/07/cleaning-cython-build-files/
+# http://cython.readthedocs.io/en/latest/src/reference/compilation.html
 import sysconfig
 
 import os
@@ -20,9 +21,9 @@ if "cleanall" in args:
     print("Deleting cython files...")
     # Just in case the build directory was created by accident,
     # note that shell=True should be OK here because the command is constant.
-    subprocess.Popen("rm -rf build", shell=True, executable="/bin/bash")
-    subprocess.Popen("rm -rf *.c", shell=True, executable="/bin/bash")
-    subprocess.Popen("rm -rf *.so", shell=True, executable="/bin/bash")
+    subprocess.Popen("rm -rf sandman2/build", shell=True, executable="/bin/bash")
+    subprocess.Popen("rm -rf sandman2/*.c", shell=True, executable="/bin/bash")
+    subprocess.Popen("rm -rf sandman2/*.so", shell=True, executable="/bin/bash")
 
     # Now do a normal clean
     sys.argv[1] = "clean"
@@ -33,6 +34,7 @@ elif args.count("build_ext") > 0 and args.count("--inplace") == 0:
 
 if args.count("build_ext") > 0:
     os.environ['ARCHFLAGS'] = "-arch x86_64"
+    os.environ['CFLAGS'] = '-Ofast'
 #     setup(
 #       name = 'api',
 #       ext_modules=[

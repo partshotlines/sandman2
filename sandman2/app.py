@@ -4,6 +4,8 @@
 from flask import Flask, current_app, jsonify
 from sqlalchemy.sql import sqltypes
 from flask_compress import Compress
+from flask import request as request
+
 try:
     import Auth
 except ImportError:
@@ -31,6 +33,8 @@ from sandman2.model import db, Model, AutomapModel
 from sandman2.admin import CustomAdminView
 from flask_admin import Admin
 from flask_httpauth import HTTPBasicAuth
+
+from Stats import Stats
 
 # Augment sandman2's Model class with the Automap and Flask-SQLAlchemy model
 # classes
@@ -86,10 +90,6 @@ def get_app(
 
     @app.before_request
     def before_request_hook():
-        from flask import request
-        if app.config['self_log']:
-            msg = "%s [%s] [%s]" % (request.url, request.remote_addr, request.method)
-            print(msg)
         req = Request.Request(app, request)
         req.before_request_hook(app, request)
 
@@ -97,12 +97,16 @@ def get_app(
     @auth.login_required
     def index():
         """Return a list of routes to the registered classes."""
+        stats = Stats()
         routes = {}
         for cls in app.classes:
             routes[cls.__model__.__name__] = '{}{{/{}}}'.format(
                 cls.__model__.__url__,
                 cls.__model__.primary_key())
-        return jsonify(routes)
+        resp = jsonify(routes)
+        stats.setresponse(resp)
+        stats.log()
+        return resp
     return app
 
 def _register_error_handlers(app):

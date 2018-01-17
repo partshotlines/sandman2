@@ -21,6 +21,8 @@ except ImportError:
     import auth as Auth
     pass
 
+from Stats import Stats
+
 auth = HTTPBasicAuth()
 
 def add_link_headers(response, links):
@@ -107,6 +109,7 @@ class Service(MethodView):
 
         :param resource_id: The value of the resource's primary key
         """
+        stats = Stats()
         if request.path.endswith('meta'):
             return self._meta()
 
@@ -123,7 +126,7 @@ class Service(MethodView):
             if 'export' in request.args:
                 return self._export(self._all_resources())
 
-            return flask.jsonify({
+            resp = flask.jsonify({
                 self.__json_collection_name__: self._all_resources()
                 })
         else:
@@ -131,7 +134,10 @@ class Service(MethodView):
             error_message = is_valid_method(self.__model__, resource)
             if error_message:
                 raise BadRequestException(error_message)
-            return jsonify(resource)
+            resp = jsonify(resource)
+        stats.setresponse(resp)
+        stats.log()
+        return resp
 
     @auth.login_required
     def patch(self, resource_id):
@@ -142,7 +148,7 @@ class Service(MethodView):
         :returns: ``HTTP 404`` if the resource is not found
         :param resource_id: The value of the resource's primary key
         """
-
+        stats = Stats()
         req = Request.Request(current_app, request)
 
         resource = self._resource(resource_id)
@@ -157,7 +163,8 @@ class Service(MethodView):
         db.session().refresh( resource )
         ret = self._created_response(resource)
         db.session().commit()
-
+        stats.setresponse(ret)
+        stats.log()
         return ret #jsonify(resource)
 
     # aadel - 2017-09-18 - complete overhaul to handle multiples via the collection name tag, or a single one
@@ -171,6 +178,7 @@ class Service(MethodView):
         :returns: ``HTTP 204`` if the resource already exists
         :returns: ``HTTP 400`` if the request is malformed or missing data
         """
+        stats = Stats()
         req = Request.Request(current_app, request)
         ret = '{}'
         resources = req.json[self.__json_collection_name__] if self.__json_collection_name__ in req.json else self.__model__(**req.json)
@@ -202,7 +210,8 @@ class Service(MethodView):
             ret = self._created_response(resources)
 
         db.session().commit()
-
+        stats.setresponse(ret)
+        stats.log()
         return ret
 
     @auth.login_required
@@ -220,6 +229,7 @@ class Service(MethodView):
         :returns: ``HTTP 200`` if a resource is updated
         :returns: ``HTTP 400`` if the request is malformed or missing data
         """
+        stats = Stats()
         req = Request.Request(current_app, request)
         if resource_id:
             resource = self.__model__.query.get(resource_id)
@@ -230,7 +240,10 @@ class Service(MethodView):
                 resource.update(req.json)
                 db.session().merge(resource)
                 db.session().commit()
-                return jsonify(resource)
+                ret = jsonify(resource)
+                stats.setresponse(ret)
+                stats.log()
+                return ret
 
             resource = self.__model__(**req.json)  # pylint: disable=not-callable
             error_message = is_valid_method(self.__model__, resource)
@@ -238,7 +251,10 @@ class Service(MethodView):
                 raise BadRequestException(error_message)
             db.session().add(resource)
             db.session().commit()
-            return self._created_response(resource)
+            ret = self._created_response(resource)
+            stats.setresponse(ret)
+            stats.log()
+            return ret
         else:
             ret = '{}'
             resources = req.json[self.__json_collection_name__] if self.__json_collection_name__ in req.json else self.__model__(**req.json)
@@ -271,7 +287,8 @@ class Service(MethodView):
                 ret = self._created_response(resources)
 
             db.session().commit()
-
+            stats.setresponse(ret)
+            stats.log()
             return ret
 
     def _upsert(self, resource, db):
