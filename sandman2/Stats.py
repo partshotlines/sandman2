@@ -22,7 +22,7 @@ class Stats:
         self.response_code = response.status_code
         self.end_time = time.time()
 
-    def log(self, log_data=True):
+    def log(self, log_data=False):
         if self.response is not None:
             s = (
                     self.remote_ip,
